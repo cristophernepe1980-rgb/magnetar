@@ -797,12 +797,21 @@
   <button id="btn-restart" onclick="restartGame()">NUEVA PARTIDA</button>
 </div>
 
-<!-- Firebase SDK -->
-<script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import {
-  getDatabase, ref, set, get, onValue, update, remove
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+<!-- Firebase SDK compat (no module, accesible globalmente) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+// Alias para que el código interno funcione igual
+function initializeApp(cfg, name) { return firebase.initializeApp(cfg, name); }
+function getDatabase(app) { return app.database(); }
+function ref(db, path) { return db.ref(path); }
+function set(r, val) { return r.set(val); }
+function get(r) { return r.get(); }
+function onValue(r, cb) { r.on('value', cb); return () => r.off('value', cb); }
+function update(r, val) { return r.update(val); }
+function remove(r) { return r.remove(); }
+</script>
+<script>
 
 /* ═══════════════════════════════════════════════════════════════
    MAGNETAR ONLINE — Motor completo con backend Firebase
@@ -872,7 +881,7 @@ window.connectFirebase = async function() {
 
   try {
     firebaseApp = initializeApp({
-      apiKey: 'placeholder',
+      apiKey: 'AIzaSyA3fAH7BSLcc1gAlVowK68UT5G_r80Lxfw',
       databaseURL: urlInput,
     }, 'magnetar-' + Date.now());
 
@@ -928,10 +937,12 @@ window.createRoom = async function() {
 
   // Escuchar cuando se una el P2
   const gRef = ref(db, `magnetar/${code}/players`);
-  const unsubPlayers = onValue(gRef, (snap) => {
+  let gameStarted = false;
+  gRef.on('value', (snap) => {
     const data = snap.val();
-    if (data && data.p2_joined) {
-      unsubPlayers(); // dejar de escuchar esto
+    if (data && data.p2_joined && !gameStarted) {
+      gameStarted = true;
+      gRef.off('value');
       startOnlineGame();
     }
   });
@@ -1004,11 +1015,9 @@ function startOnlineGame() {
 
   // ─── Escuchar cambios del juego en Firebase ─────────────────
   const gameStateRef = ref(db, `magnetar/${currentRoom}/game`);
-  unsubscribeGame = onValue(gameStateRef, (snap) => {
+  gameStateRef.on('value', (snap) => {
     const remoteState = snap.val();
     if (!remoteState) return;
-
-    // Sincronizar estado del servidor al cliente
     syncFromServer(remoteState);
   });
 
