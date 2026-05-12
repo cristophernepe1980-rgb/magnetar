@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAGNETAR — Multijugador Online</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --p1: #00d4ff;
+    --p1-glow: rgba(0,212,255,0.4);
+    --p1-dark: #0088aa;
+    --p2: #ff6b35;
+    --p2-glow: rgba(255,107,53,0.4);
+    --p2-dark: #aa3300;
+    --bg: #050810;
+    --surface: #0a0f1e;
+    --surface2: #0f1628;
+    --border: rgba(255,255,255,0.08);
+    --text: #e8eaf6;
+    --muted: rgba(232,234,246,0.4);
+    --gold: #ffd700;
+    --danger: #ff3366;
+    --success: #00ff88;
+    --font-display: 'Orbitron', monospace;
+    --font-body: 'Rajdhani', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ─── PANTALLA LOBBY ─── */
+  #screen-lobby {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    background: var(--bg);
+    gap: 1.5rem;
+  }
+
+  .intro-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 50%, rgba(0,212,255,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 60% at 20% 80%, rgba(255,107,53,0.04) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .intro-logo {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 7vw, 5.5rem);
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    background: linear-gradient(135deg, var(--p1) 0%, #ffffff 50%, var(--p2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative; z-index: 1;
+    animation: logoPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes logoPulse {
+    0%,100% { filter: drop-shadow(0 0 20px rgba(0,212,255,0.5)); }
+    50% { filter: drop-shadow(0 0 40px rgba(255,107,53,0.5)); }
+  }
+
+  .intro-tagline {
+    font-size: clamp(0.75rem, 2vw, 1rem);
+    font-weight: 300;
+    letter-spacing: 0.4em;
+    color: var(--muted);
+    text-transform: uppercase;
+    z-index: 1;
+  }
+
+  /* ─── SETUP FIREBASE ─── */
+  #firebase-setup {
+    z-index: 1;
+    width: min(420px, 92vw);
+    background: rgba(10,15,30,0.9);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  #firebase-setup h3 {
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: var(--p1);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .setup-info {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  .setup-info a { color: var(--p1); text-decoration: none; }
+  .setup-info a:hover { text-decoration: underline; }
+
+  .setup-steps {
+    background: rgba(0,212,255,0.04);
+    border: 1px solid rgba(0,212,255,0.12);
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .setup-steps b { color: var(--text); }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .field-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .field-input {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.65rem 0.9rem;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+
+  .field-input:focus {
+    border-color: rgba(0,212,255,0.4);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+
+  .field-input::placeholder { color: rgba(232,234,246,0.2); }
+
+  .btn-primary {
+    padding: 0.85rem 2rem;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--bg);
+    background: linear-gradient(135deg, var(--p1), #0088cc);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    box-shadow: 0 0 25px rgba(0,212,255,0.35);
+    width: 100%;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 40px rgba(0,212,255,0.55);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ─── LOBBY PANEL (después de conectar Firebase) ─── */
+  #lobby-panel {
+    z-index: 1;
+    width: min(440px, 92vw);
+    display: none;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .lobby-card {
+    width: 100%;
+    background: rgba(10,15,30,0.9);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.4rem;
+    backdrop-filter: blur(12px);
+  }
+
+  .lobby-card h3 {
+    font-family: var(--font-display);
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    color: var(--p1);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  .room-code-display {
+    font-family: var(--font-display);
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    color: var(--text);
+    text-align: center;
+    padding: 1rem;
+    background: rgba(0,212,255,0.05);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius: 10px;
+    margin: 0.5rem 0;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .room-code-display:hover {
+    background: rgba(0,212,255,0.1);
+    border-color: rgba(0,212,255,0.4);
+  }
+
+  .copy-hint {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 0.3rem;
+  }
+
+  .waiting-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    justify-content: center;
+    padding: 0.7rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+  }
+
+  .dot-pulse {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--p1);
+    animation: dotPulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%,100% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .join-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .join-row .field-input { flex: 1; font-family: var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; }
+
+  .btn-secondary {
+    padding: 0.65rem 1.2rem;
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-secondary:hover {
+    border-color: rgba(255,107,53,0.5);
+    color: var(--p2);
+    box-shadow: 0 0 15px rgba(255,107,53,0.2);
+  }
+
+  /* ─── STATUS BAR ─── */
+  #status-bar {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    background: rgba(10,15,30,0.8);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0.4rem 1rem;
+    backdrop-filter: blur(8px);
+    z-index: 200;
+    pointer-events: none;
+    transition: opacity 0.4s;
+  }
+
+  /* ─── JUEGO PRINCIPAL ─── */
+  #screen-game {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100vh;
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .hud {
+    display: flex;
+    width: min(900px, 100%);
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .player-panel {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    border: 1px solid var(--border);
+    transition: border-color 0.3s, box-shadow 0.3s;
+    position: relative;
+  }
+
+  .player-panel.active {
+    border-color: var(--active-color, var(--p1));
+    box-shadow: 0 0 20px var(--active-glow, var(--p1-glow)),
+                inset 0 0 30px rgba(0,212,255,0.03);
+  }
+
+  .player-panel.p1 { --active-color: var(--p1); --active-glow: var(--p1-glow); }
+  .player-panel.p2 { --active-color: var(--p2); --active-glow: var(--p2-glow); }
+
+  .you-badge {
+    position: absolute;
+    top: 0.4rem; right: 0.4rem;
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .p1 .you-badge { background: rgba(0,212,255,0.15); color: var(--p1); }
+  .p2 .you-badge { background: rgba(255,107,53,0.15); color: var(--p2); }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .player-name {
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .p1 .player-name { color: var(--p1); }
+  .p2 .player-name { color: var(--p2); }
+
+  .turn-indicator {
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 600;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .player-panel.active .turn-indicator { opacity: 1; }
+  .p1 .turn-indicator { background: rgba(0,212,255,0.15); color: var(--p1); }
+  .p2 .turn-indicator { background: rgba(255,107,53,0.15); color: var(--p2); }
+
+  .magnet-inventory {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .magnet-pip {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid;
+    transition: transform 0.3s, opacity 0.3s;
+  }
+
+  .p1 .magnet-pip { border-color: var(--p1); background: rgba(0,212,255,0.15); }
+  .p2 .magnet-pip { border-color: var(--p2); background: rgba(255,107,53,0.15); }
+  .magnet-pip.used { opacity: 0.2; transform: scale(0.7); }
+
+  .score-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .hud-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    min-width: 90px;
+  }
+
+  .turn-count {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--text);
+  }
+
+  .turn-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ─── CONNECTION BADGE ─── */
+  .conn-badge {
+    font-size: 0.5rem;
+    letter-spacing: 0.15em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .conn-badge.online { background: rgba(0,255,136,0.15); color: var(--success); }
+  .conn-badge.online::before { content: '●'; font-size: 0.45rem; }
+
+  #arena-wrapper { position: relative; flex-shrink: 0; }
+
+  #game-canvas { display: block; cursor: crosshair; border-radius: 50%; }
+
+  /* ─── MENSAJE FLOTANTE ─── */
+  #floating-msg {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    font-family: var(--font-display);
+    font-size: clamp(1.2rem, 4vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 50;
+    text-shadow: 0 0 30px currentColor;
+    padding: 0.5rem 1.5rem;
+    border-radius: 8px;
+  }
+
+  /* ─── OVERLAY ESPERA DE TURNO ─── */
+  #waiting-overlay {
+    position: fixed; inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    pointer-events: none;
+  }
+
+  .waiting-turn-msg {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+    background: rgba(5,8,16,0.7);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 1.2rem;
+    backdrop-filter: blur(6px);
+  }
+
+  /* ─── PANTALLA VICTORIA ─── */
+  #screen-victory {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    background: rgba(5,8,16,0.95);
+    backdrop-filter: blur(20px);
+  }
+
+  .victory-title {
+    font-family: var(--font-display);
+    font-size: clamp(0.7rem, 2vw, 1rem);
+    letter-spacing: 0.4em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    animation: fadeIn 0.5s 0.2s both;
+  }
+
+  .victory-winner {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 8vw, 6rem);
+    font-weight: 900;
+    letter-spacing: 0.1em;
+    animation: victoryPop 0.6s 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+
+  .victory-winner.p1 {
+    background: linear-gradient(135deg, var(--p1), #ffffff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px rgba(0,212,255,0.7));
+  }
+
+  .victory-winner.p2 {
+    background: linear-gradient(135deg, var(--p2), #ffffff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 30px rgba(255,107,53,0.7));
+  }
+
+  @keyframes victoryPop {
+    from { opacity: 0; transform: scale(0.5) rotate(-5deg); }
+    to   { opacity: 1; transform: scale(1) rotate(0deg); }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .victory-reason {
+    font-size: clamp(1rem, 2.5vw, 1.3rem);
+    color: var(--muted);
+    margin-top: 0.5rem;
+    animation: fadeIn 0.5s 0.8s both;
+    letter-spacing: 0.1em;
+  }
+
+  .victory-stats {
+    margin-top: 2rem;
+    display: flex;
+    gap: 2rem;
+    animation: fadeIn 0.5s 1s both;
+  }
+
+  .v-stat { text-align: center; }
+
+  .v-stat-num {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    font-weight: 700;
+  }
+
+  .v-stat-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  #btn-restart {
+    margin-top: 2.5rem;
+    padding: 0.85rem 2.5rem;
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text);
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.2s;
+    animation: fadeIn 0.5s 1.2s both;
+  }
+
+  #btn-restart:hover {
+    border-color: var(--text);
+    background: rgba(255,255,255,0.05);
+    transform: translateY(-2px);
+  }
+
+  #prob-tooltip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 80;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    opacity: 0;
+    transition: opacity 0.2s;
+    white-space: nowrap;
+  }
+
+  #bg-canvas {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  #screen-game, #screen-lobby { z-index: 1; }
+
+  .error-msg {
+    color: var(--danger);
+    font-size: 0.8rem;
+    text-align: center;
+    min-height: 1rem;
+    letter-spacing: 0.05em;
+  }
+
+  .success-msg {
+    color: var(--success);
+    font-size: 0.8rem;
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div id="prob-tooltip"></div>
+<div id="floating-msg"></div>
+<div id="status-bar">Conectando...</div>
+
+<!-- ═══ PANTALLA LOBBY ═══ -->
+<div id="screen-lobby">
+  <div class="intro-bg"></div>
+  <div class="intro-logo">MAGNETAR</div>
+  <div class="intro-tagline">Arena Magnética · Online</div>
+
+  <!-- PASO 1: Configurar Firebase -->
+  <div id="firebase-setup">
+    <h3>⚡ Configuración Firebase</h3>
+    <div class="setup-info">
+      Necesitas un proyecto Firebase gratuito.<br>
+      <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a>
+    </div>
+    <div class="setup-steps">
+      <b>Pasos rápidos:</b><br>
+      1. Crear proyecto → agregar app Web<br>
+      2. Build → Realtime Database → Crear<br>
+      3. En <b>Reglas</b> poner: <code style="color:var(--p1)">".read":true, ".write":true</code><br>
+      4. Pega tu <b>Database URL</b> abajo
+    </div>
+    <div class="field-group">
+      <div class="field-label">Firebase Database URL</div>
+      <input class="field-input" id="fb-url" type="text"
+        placeholder="https://tu-proyecto-default-rtdb.firebaseio.com"
+        value="">
+    </div>
+    <div class="error-msg" id="setup-error"></div>
+    <button class="btn-primary" id="btn-connect" onclick="connectFirebase()">CONECTAR</button>
+  </div>
+
+  <!-- PASO 2: Lobby -->
+  <div id="lobby-panel">
+    <div class="lobby-card">
+      <h3>🎮 Crear sala nueva</h3>
+      <button class="btn-primary" onclick="createRoom()" id="btn-create">CREAR SALA</button>
+      <div id="room-created" style="display:none">
+        <div class="room-code-display" id="room-code-display" onclick="copyRoomCode()">----</div>
+        <div class="copy-hint">Haz clic para copiar · Comparte este código con tu rival</div>
+        <div class="waiting-indicator">
+          <div class="dot-pulse"></div>
+          <span>Esperando al oponente...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider">o</div>
+
+    <div class="lobby-card">
+      <h3>🔗 Unirse a sala existente</h3>
+      <div class="join-row">
+        <input class="field-input" id="join-code" type="text"
+          placeholder="CÓDIGO" maxlength="6"
+          oninput="this.value=this.value.toUpperCase()">
+        <button class="btn-secondary" onclick="joinRoom()">UNIRSE</button>
+      </div>
+      <div class="error-msg" id="join-error" style="margin-top:0.5rem"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PANTALLA JUEGO ═══ -->
+<div id="screen-game">
+  <div class="hud">
+    <div class="player-panel p1 active" id="panel-p1">
+      <div class="you-badge" id="you-badge-p1" style="display:none">TÚ</div>
+      <div class="panel-header">
+        <span class="player-name">Jugador 1</span>
+        <span class="turn-indicator">TU TURNO</span>
+      </div>
+      <div class="magnet-inventory" id="inv-p1"></div>
+      <div class="score-label">Imanes: <span id="count-p1">6</span></div>
+    </div>
+
+    <div class="hud-center">
+      <div class="turn-count" id="turn-num">1</div>
+      <div class="turn-label">Turno</div>
+      <div class="conn-badge online">Online</div>
+    </div>
+
+    <div class="player-panel p2" id="panel-p2">
+      <div class="you-badge" id="you-badge-p2" style="display:none">TÚ</div>
+      <div class="panel-header">
+        <span class="player-name">Jugador 2</span>
+        <span class="turn-indicator">TU TURNO</span>
+      </div>
+      <div class="magnet-inventory" id="inv-p2"></div>
+      <div class="score-label">Imanes: <span id="count-p2">6</span></div>
+    </div>
+  </div>
+
+  <div id="arena-wrapper">
+    <canvas id="game-canvas"></canvas>
+  </div>
+</div>
+
+<!-- ═══ PANTALLA VICTORIA ═══ -->
+<div id="screen-victory">
+  <div class="victory-title">¡ V I C T O R I A !</div>
+  <div class="victory-winner" id="victory-winner-text">Jugador 1</div>
+  <div class="victory-reason" id="victory-reason"></div>
+  <div class="victory-stats">
+    <div class="v-stat">
+      <div class="v-stat-num" id="vs-turns">—</div>
+      <div class="v-stat-label">Turnos</div>
+    </div>
+    <div class="v-stat">
+      <div class="v-stat-num" id="vs-attractions">—</div>
+      <div class="v-stat-label">Atracciones</div>
+    </div>
+  </div>
+  <button id="btn-restart" onclick="restartGame()">NUEVA PARTIDA</button>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import {
+  getDatabase, ref, set, get, onValue, update, remove
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+/* ═══════════════════════════════════════════════════════════════
+   MAGNETAR ONLINE — Motor completo con backend Firebase
+   ═══════════════════════════════════════════════════════════════ */
+
+// ─── Constantes ────────────────────────────────────────────────
+const CFG = {
+  MAGNETS_START: 6,
+  MAGNET_RADIUS: 22,
+  ATTRACT_RANGE: 70,
+  ATTRACT_PROB: 0.5,
+  ARENA_RATIO: 0.92,
+  ATTRACT_ANIM_DURATION: 900,
+  FLOAT_MSG_DURATION: 1200,
+  PARTICLE_COUNT: 80,
+  P1_COLOR: '#00d4ff',
+  P2_COLOR: '#ff6b35',
+};
+
+// ─── Estado Firebase ────────────────────────────────────────────
+let firebaseApp = null;
+let db = null;
+let roomRef = null;
+let currentRoom = null;
+let myPlayerNum = null;     // 1 o 2
+let unsubscribeGame = null;
+
+// ─── Estado del juego ───────────────────────────────────────────
+const GS = {
+  turn: 1,
+  turnCount: 0,
+  totalAttractions: 0,
+  phase: 'idle',
+  players: {
+    1: { magnets: CFG.MAGNETS_START, color: CFG.P1_COLOR, glow: 'rgba(0,212,255,0.5)' },
+    2: { magnets: CFG.MAGNETS_START, color: CFG.P2_COLOR, glow: 'rgba(255,107,53,0.5)' },
+  },
+  placedMagnets: [],
+  particles: [],
+  attractionArcs: [],
+  magnetIdCounter: 0,
+  hoveredCell: null,
+};
+
+// ─── Canvas ─────────────────────────────────────────────────────
+let canvas, ctx, arenaRadius, arenaCX, arenaCY;
+let bgCanvas, bgCtx;
+let bgParticles = [];
+let animFrameId;
+
+// ═══════════════════════════════════════════════════════════════
+// FIREBASE — CONECTAR
+// ═══════════════════════════════════════════════════════════════
+window.connectFirebase = async function() {
+  const urlInput = document.getElementById('fb-url').value.trim();
+  const errEl = document.getElementById('setup-error');
+  errEl.textContent = '';
+
+  if (!urlInput || !urlInput.includes('firebaseio.com')) {
+    errEl.textContent = 'URL inválida. Debe terminar en firebaseio.com';
+    return;
+  }
+
+  const btn = document.getElementById('btn-connect');
+  btn.disabled = true;
+  btn.textContent = 'CONECTANDO...';
+
+  try {
+    firebaseApp = initializeApp({
+      apiKey: 'placeholder',
+      databaseURL: urlInput,
+    }, 'magnetar-' + Date.now());
+
+    db = getDatabase(firebaseApp);
+
+    // Test de conexión
+    const testRef = ref(db, '.info/connected');
+    await get(testRef);
+
+    document.getElementById('firebase-setup').style.display = 'none';
+    document.getElementById('lobby-panel').style.display = 'flex';
+    setStatus('Firebase conectado ✓');
+
+  } catch (e) {
+    errEl.textContent = 'Error al conectar: ' + (e.message || 'Verifica la URL y las reglas de la DB');
+    btn.disabled = false;
+    btn.textContent = 'CONECTAR';
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// LOBBY — CREAR SALA
+// ═══════════════════════════════════════════════════════════════
+window.createRoom = async function() {
+  const code = generateCode();
+  currentRoom = code;
+  myPlayerNum = 1;
+
+  roomRef = ref(db, `magnetar/${code}`);
+
+  const initialState = {
+    players: { p1_joined: true, p2_joined: false },
+    game: {
+      turn: 1,
+      turnCount: 0,
+      totalAttractions: 0,
+      phase: 'waiting',
+      p1_magnets: CFG.MAGNETS_START,
+      p2_magnets: CFG.MAGNETS_START,
+      placedMagnets: [],
+      magnetIdCounter: 0,
+      lastAction: null,
+    },
+    created: Date.now(),
+  };
+
+  await set(roomRef, initialState);
+
+  document.getElementById('room-code-display').textContent = code;
+  document.getElementById('room-created').style.display = 'block';
+  document.getElementById('btn-create').style.display = 'none';
+  setStatus(`Sala creada: ${code}`);
+
+  // Escuchar cuando se una el P2
+  const gRef = ref(db, `magnetar/${code}/players`);
+  const unsubPlayers = onValue(gRef, (snap) => {
+    const data = snap.val();
+    if (data && data.p2_joined) {
+      unsubPlayers(); // dejar de escuchar esto
+      startOnlineGame();
+    }
+  });
+};
+
+// ═══════════════════════════════════════════════════════════════
+// LOBBY — UNIRSE A SALA
+// ═══════════════════════════════════════════════════════════════
+window.joinRoom = async function() {
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  const errEl = document.getElementById('join-error');
+  errEl.textContent = '';
+
+  if (code.length < 4) {
+    errEl.textContent = 'Ingresa el código de sala';
+    return;
+  }
+
+  const snapRef = ref(db, `magnetar/${code}`);
+  const snap = await get(snapRef);
+
+  if (!snap.exists()) {
+    errEl.textContent = 'Sala no encontrada';
+    return;
+  }
+
+  const data = snap.val();
+  if (data.players.p2_joined) {
+    errEl.textContent = 'La sala está llena';
+    return;
+  }
+
+  currentRoom = code;
+  myPlayerNum = 2;
+  roomRef = ref(db, `magnetar/${code}`);
+
+  await update(ref(db, `magnetar/${code}/players`), { p2_joined: true });
+  await update(ref(db, `magnetar/${code}/game`), { phase: 'playing' });
+
+  startOnlineGame();
+};
+
+window.copyRoomCode = function() {
+  const code = document.getElementById('room-code-display').textContent;
+  navigator.clipboard.writeText(code).catch(() => {});
+  setStatus('Código copiado: ' + code);
+};
+
+// ═══════════════════════════════════════════════════════════════
+// INICIAR JUEGO ONLINE
+// ═══════════════════════════════════════════════════════════════
+function startOnlineGame() {
+  document.getElementById('screen-lobby').style.display = 'none';
+  document.getElementById('screen-game').style.display = 'flex';
+
+  // Mostrar badge "TÚ"
+  document.getElementById(`you-badge-p${myPlayerNum}`).style.display = 'block';
+
+  canvas = document.getElementById('game-canvas');
+  ctx = canvas.getContext('2d');
+  resizeGameCanvas();
+
+  canvas.addEventListener('mousemove', onCanvasHover);
+  canvas.addEventListener('click', onCanvasClick);
+  canvas.addEventListener('touchstart', onCanvasTouch, { passive: false });
+  canvas.addEventListener('touchmove', onCanvasHoverTouch, { passive: false });
+
+  if (animFrameId) cancelAnimationFrame(animFrameId);
+  gameLoop();
+
+  // ─── Escuchar cambios del juego en Firebase ─────────────────
+  const gameStateRef = ref(db, `magnetar/${currentRoom}/game`);
+  unsubscribeGame = onValue(gameStateRef, (snap) => {
+    const remoteState = snap.val();
+    if (!remoteState) return;
+
+    // Sincronizar estado del servidor al cliente
+    syncFromServer(remoteState);
+  });
+
+  setStatus(`Sala ${currentRoom} · Jugador ${myPlayerNum}`);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SINCRONIZACIÓN: SERVIDOR → CLIENTE
+// ═══════════════════════════════════════════════════════════════
+function syncFromServer(remote) {
+  const wasPhase = GS.phase;
+
+  GS.turn          = remote.turn;
+  GS.turnCount     = remote.turnCount;
+  GS.totalAttractions = remote.totalAttractions;
+  GS.players[1].magnets = remote.p1_magnets;
+  GS.players[2].magnets = remote.p2_magnets;
+  GS.magnetIdCounter    = remote.magnetIdCounter;
+
+  // Actualizar imanes colocados con animaciones de llegada
+  const prevIds = new Set(GS.placedMagnets.map(m => m.id));
+  const remoteArr = remote.placedMagnets
+    ? (Array.isArray(remote.placedMagnets)
+        ? remote.placedMagnets
+        : Object.values(remote.placedMagnets))
+    : [];
+
+  // Detectar imanes nuevos para partículas
+  remoteArr.forEach(m => {
+    if (!prevIds.has(m.id)) {
+      spawnImpactParticles(m.x, m.y, m.owner === 1 ? CFG.P1_COLOR : CFG.P2_COLOR, 12);
+    }
+  });
+
+  // Detectar imanes eliminados (atracción ocurrida)
+  const remoteIds = new Set(remoteArr.map(m => m.id));
+  GS.placedMagnets.forEach(m => {
+    if (!remoteIds.has(m.id)) {
+      spawnImpactParticles(m.x, m.y, '#ffd700', 18);
+    }
+  });
+
+  GS.placedMagnets = remoteArr.map(m => ({
+    ...m,
+    glowPhase: m.glowPhase || Math.random() * Math.PI * 2,
+  }));
+
+  // Manejar la última acción del servidor (mensajes y arcos)
+  if (remote.lastAction && remote.lastAction.ts !== GS._lastActionTs) {
+    GS._lastActionTs = remote.lastAction.ts;
+    handleServerAction(remote.lastAction);
+  }
+
+  // Fase del juego
+  if (remote.phase === 'ended' && wasPhase !== 'ended') {
+    GS.phase = 'ended';
+    showVictory(remote.winner, remote.winReason);
+  } else if (remote.phase === 'playing') {
+    GS.phase = isMyTurn() ? 'idle' : 'watching';
+  }
+
+  updateHUD();
+  updateInventoryUI();
+}
+
+function handleServerAction(action) {
+  if (action.type === 'attraction') {
+    showFloatingMsg(`¡ATRACCIÓN! +${action.count} imán${action.count > 1 ? 'es' : ''}`,
+      action.player === 1 ? CFG.P1_COLOR : CFG.P2_COLOR, 1800);
+
+    // Arcos dorados
+    if (action.arcs) {
+      action.arcs.forEach(arc => {
+        GS.attractionArcs.push({
+          x1: arc.x1, y1: arc.y1, x2: arc.x2, y2: arc.y2,
+          color: 'rgba(255,215,0', alpha: 1, progress: 0,
+        });
+      });
+    }
+  } else if (action.type === 'miss') {
+    showFloatingMsg('Sin atracción ✓', '#00ff88', 800);
+  }
+}
+
+function isMyTurn() {
+  return GS.turn === myPlayerNum;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLOCAR IMÁN (solo el jugador activo lo ejecuta)
+// ═══════════════════════════════════════════════════════════════
+async function tryPlaceMagnet(x, y) {
+  if (!isMyTurn() || GS.phase !== 'idle') return;
+
+  const player = GS.players[myPlayerNum];
+  if (player.magnets <= 0) {
+    showFloatingMsg('¡Sin imanes!', '#ff3366');
+    return;
+  }
+  if (!isInsideArena(x, y)) {
+    showFloatingMsg('¡Fuera de la arena!', '#ff3366');
+    return;
+  }
+  const tooClose = GS.placedMagnets.some(m =>
+    Math.hypot(m.x - x, m.y - y) < CFG.MAGNET_RADIUS * 2.2
+  );
+  if (tooClose) {
+    showFloatingMsg('¡Posición ocupada!', '#ff3366');
+    spawnImpactParticles(x, y, '#ff3366', 8);
+    return;
+  }
+
+  GS.phase = 'animating';
+  GS.hoveredCell = null;
+
+  const newId = GS.magnetIdCounter + 1;
+  const newMagnet = {
+    x, y,
+    owner: myPlayerNum,
+    id: newId,
+    glowPhase: Math.random() * Math.PI * 2,
+  };
+
+  // ── Calcular atracciones (determinístico con semilla del servidor)
+  const inRange = GS.placedMagnets.filter(m =>
+    Math.hypot(m.x - x, m.y - y) < CFG.ATTRACT_RANGE
+  );
+
+  let attracted = [];
+  for (const candidate of inRange) {
+    if (Math.random() < CFG.ATTRACT_PROB) {
+      attracted.push(candidate);
+    }
+  }
+
+  spawnImpactParticles(x, y, player.color, 16);
+
+  // ── Construir nuevo estado
+  const attractedIds = new Set(attracted.map(m => m.id));
+  attractedIds.add(newId);
+
+  let newMagnets = [...GS.placedMagnets];
+  let p1m = GS.players[1].magnets;
+  let p2m = GS.players[2].magnets;
+
+  let action = null;
+  let arcs = [];
+
+  if (attracted.length > 0) {
+    // Atracción ocurrió
+    const totalReceived = attracted.length + 1;
+    if (myPlayerNum === 1) p1m += totalReceived;
+    else p2m += totalReceived;
+
+    // Arcos para el servidor
+    attracted.forEach(t => {
+      arcs.push({ x1: t.x, y1: t.y, x2: x, y2: y });
+      spawnImpactParticles(t.x, t.y, '#ffd700', 15);
+    });
+    spawnImpactParticles(x, y, '#ffd700', 10);
+
+    newMagnets = newMagnets.filter(m => !attractedIds.has(m.id));
+
+    action = {
+      type: 'attraction',
+      player: myPlayerNum,
+      count: totalReceived,
+      arcs,
+      ts: Date.now(),
+    };
+
+    showFloatingMsg(
+      `¡ATRACCIÓN! +${totalReceived} imán${totalReceived > 1 ? 'es' : ''}`,
+      player.color, 1800
+    );
+  } else {
+    // Colocar sin atracción
+    if (myPlayerNum === 1) p1m--;
+    else p2m--;
+    newMagnets = [...newMagnets, newMagnet];
+
+    if (inRange.length > 0) {
+      inRange.forEach(m => {
+        GS.attractionArcs.push({
+          x1: x, y1: y, x2: m.x, y2: m.y,
+          color: 'rgba(255,255,255', alpha: 0.3, progress: 0,
+        });
+      });
+      action = { type: 'miss', ts: Date.now() };
+      showFloatingMsg('Sin atracción ✓', '#00ff88', 800);
+    }
+  }
+
+  // Verificar victoria
+  let winner = null, winReason = null, newPhase = 'playing';
+  if (p1m === 0) {
+    winner = 1; winReason = 'Se quedó sin imanes'; newPhase = 'ended';
+  } else if (p2m === 0) {
+    winner = 2; winReason = 'Se quedó sin imanes'; newPhase = 'ended';
+  }
+
+  const nextTurn = myPlayerNum === 1 ? 2 : 1;
+
+  // ── Escribir en Firebase ────────────────────────────────────
+  const newGameState = {
+    turn: nextTurn,
+    turnCount: GS.turnCount + 1,
+    totalAttractions: GS.totalAttractions + (attracted.length > 0 ? 1 : 0),
+    phase: newPhase,
+    p1_magnets: p1m,
+    p2_magnets: p2m,
+    magnetIdCounter: newId,
+    placedMagnets: newMagnets,
+    lastAction: action,
+  };
+
+  if (winner !== null) {
+    newGameState.winner = winner;
+    newGameState.winReason = winReason;
+  }
+
+  await update(ref(db, `magnetar/${currentRoom}/game`), newGameState);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REINICIAR
+// ═══════════════════════════════════════════════════════════════
+window.restartGame = async function() {
+  document.getElementById('screen-victory').style.display = 'none';
+  GS.particles = [];
+  GS.attractionArcs = [];
+  GS.hoveredCell = null;
+
+  if (myPlayerNum === 1) {
+    await update(ref(db, `magnetar/${currentRoom}/game`), {
+      turn: 1,
+      turnCount: 0,
+      totalAttractions: 0,
+      phase: 'playing',
+      p1_magnets: CFG.MAGNETS_START,
+      p2_magnets: CFG.MAGNETS_START,
+      placedMagnets: [],
+      magnetIdCounter: 0,
+      lastAction: null,
+      winner: null,
+      winReason: null,
+    });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// FONDO ANIMADO
+// ═══════════════════════════════════════════════════════════════
+window.addEventListener('load', () => {
+  bgCanvas = document.getElementById('bg-canvas');
+  bgCtx = bgCanvas.getContext('2d');
+  bgCanvas.width = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+  for (let i = 0; i < CFG.PARTICLE_COUNT; i++) {
+    bgParticles.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      vx: (Math.random()-0.5)*0.3, vy: (Math.random()-0.5)*0.3,
+      r: Math.random()*1.5+0.3, alpha: Math.random()*0.4+0.05,
+      color: Math.random()>0.5 ? CFG.P1_COLOR : CFG.P2_COLOR,
+    });
+  }
+  animateBg();
+  setStatus('Configura Firebase para empezar');
+});
+
+function animateBg() {
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+  const t = performance.now() * 0.001;
+  bgParticles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0) p.x = bgCanvas.width;
+    if (p.x > bgCanvas.width) p.x = 0;
+    if (p.y < 0) p.y = bgCanvas.height;
+    if (p.y > bgCanvas.height) p.y = 0;
+    bgCtx.beginPath();
+    bgCtx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    bgCtx.fillStyle = p.color;
+    bgCtx.globalAlpha = p.alpha * (0.7 + 0.3*Math.sin(t + p.x));
+    bgCtx.fill();
+    bgCtx.globalAlpha = 1;
+  });
+  requestAnimationFrame(animateBg);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME LOOP
+// ═══════════════════════════════════════════════════════════════
+function gameLoop() {
+  update();
+  render();
+  animFrameId = requestAnimationFrame(gameLoop);
+}
+
+function update() {
+  GS.placedMagnets.forEach(m => { m.glowPhase = (m.glowPhase||0) + 0.04; });
+  GS.particles = GS.particles.filter(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += p.gravity||0;
+    p.life -= p.decay;
+    p.size *= 0.97;
+    return p.life > 0 && p.size > 0.3;
+  });
+  GS.attractionArcs = GS.attractionArcs.filter(a => {
+    a.alpha -= 0.015;
+    a.progress = Math.min(1, a.progress + 0.04);
+    return a.alpha > 0;
+  });
+}
+
+function render() {
+  if (!ctx) return;
+  const W = canvas.width, H = canvas.height;
+  const t = performance.now() * 0.001;
+  ctx.clearRect(0, 0, W, H);
+  drawArenaBackground(t);
+  drawFieldLines(t);
+  drawAttractionArcs();
+  drawPlacedMagnets(t);
+  drawHoverPreview(t);
+  drawParticles();
+  drawTurnOverlay(t);
+}
+
+function drawArenaBackground(t) {
+  const cx = arenaCX, cy = arenaCY, R = arenaRadius;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 40;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R+5, 0, Math.PI*2);
+  ctx.fillStyle = '#050810';
+  ctx.fill();
+  ctx.restore();
+
+  const bg = ctx.createRadialGradient(cx, cy-R*0.2, 0, cx, cy, R);
+  bg.addColorStop(0, '#0d1528'); bg.addColorStop(0.7, '#080e1a'); bg.addColorStop(1, '#050810');
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.fillStyle = bg; ctx.fill();
+
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.clip();
+  for (let ring=1; ring<=4; ring++) {
+    ctx.beginPath(); ctx.arc(cx, cy, R*ring/4, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)'; ctx.lineWidth = 0.5; ctx.stroke();
+  }
+  for (let a=0; a<12; a++) {
+    const angle = (a/12)*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx+Math.cos(angle)*R, cy+Math.sin(angle)*R);
+    ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth=0.5; ctx.stroke();
+  }
+  ctx.restore();
+
+  const pulse = 0.7 + 0.3*Math.sin(t*1.5);
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2);
+  ctx.strokeStyle = `rgba(255,255,255,${0.12*pulse})`; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, R+6, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth=1; ctx.stroke();
+}
+
+function drawFieldLines(t) {
+  if (GS.placedMagnets.length < 2) return;
+  GS.placedMagnets.forEach((m1, i) => {
+    GS.placedMagnets.forEach((m2, j) => {
+      if (j <= i) return;
+      const dist = Math.hypot(m1.x-m2.x, m1.y-m2.y);
+      if (dist > CFG.ATTRACT_RANGE*1.8) return;
+      const alpha = Math.max(0, (1 - dist/(CFG.ATTRACT_RANGE*1.8))) * 0.18;
+      const sameOwner = m1.owner === m2.owner;
+      const color = sameOwner ? 'rgba(255,255,255,' : 'rgba(255,200,0,';
+      const cx2 = (m1.x+m2.x)/2, cy2 = (m1.y+m2.y)/2;
+      const curve = Math.sin(t*2+i*0.5)*8;
+      const nx = -(m2.y-m1.y)/dist, ny = (m2.x-m1.x)/dist;
+      ctx.beginPath(); ctx.moveTo(m1.x, m1.y);
+      ctx.quadraticCurveTo(cx2+nx*curve, cy2+ny*curve, m2.x, m2.y);
+      ctx.strokeStyle = color+alpha+')'; ctx.lineWidth=1;
+      ctx.setLineDash([4,8]); ctx.stroke(); ctx.setLineDash([]);
+    });
+  });
+}
+
+function drawAttractionArcs() {
+  GS.attractionArcs.forEach(arc => {
+    const { x1, y1, x2, y2, color, alpha, progress } = arc;
+    const dx = x2-x1, dy = y2-y1;
+    const endX = x1+dx*progress, endY = y1+dy*progress;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(endX, endY);
+    ctx.strokeStyle = color.replace(')', `,${alpha})`).replace('rgb','rgba');
+    ctx.lineWidth = 2; ctx.stroke();
+    if (progress > 0.3) {
+      const angle = Math.atan2(dy, dx);
+      ctx.save(); ctx.translate(endX, endY); ctx.rotate(angle);
+      ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-12,-5); ctx.lineTo(-12,5);
+      ctx.closePath();
+      ctx.fillStyle = color.replace('rgb(','rgba(').replace(')',`,${alpha})`);
+      ctx.fill(); ctx.restore();
+    }
+  });
+}
+
+function drawPlacedMagnets(t) {
+  GS.placedMagnets.forEach(m => drawMagnet(ctx, m.x, m.y, m.owner, m.glowPhase, 1.0, false));
+}
+
+function drawMagnet(c, x, y, owner, phase, alpha, isPreview) {
+  const R = CFG.MAGNET_RADIUS;
+  const color = owner===1 ? CFG.P1_COLOR : CFG.P2_COLOR;
+  const glowColor = owner===1 ? 'rgba(0,212,255,' : 'rgba(255,107,53,';
+  const pulse = isPreview ? 0.5 : (0.7+0.3*Math.sin(phase||0));
+  c.save(); c.globalAlpha = alpha;
+  if (!isPreview) {
+    const og = c.createRadialGradient(x,y,R*0.5,x,y,R*3.5);
+    og.addColorStop(0, glowColor+(0.15*pulse)+')'); og.addColorStop(1,'transparent');
+    c.beginPath(); c.arc(x,y,R*3.5,0,Math.PI*2); c.fillStyle=og; c.fill();
+  }
+  const glow = c.createRadialGradient(x,y,0,x,y,R*1.8);
+  glow.addColorStop(0, glowColor+(0.35*pulse)+')'); glow.addColorStop(1,'transparent');
+  c.beginPath(); c.arc(x,y,R*1.8,0,Math.PI*2); c.fillStyle=glow; c.fill();
+  c.shadowColor = color; c.shadowBlur = isPreview ? 8 : 15*pulse;
+  c.beginPath(); c.arc(x,y,R,0,Math.PI*2);
+  c.fillStyle='rgba(5,8,16,0.95)'; c.fill();
+  const bg2 = c.createLinearGradient(x-R,y-R,x+R,y+R);
+  bg2.addColorStop(0,color); bg2.addColorStop(0.5,'rgba(255,255,255,0.8)'); bg2.addColorStop(1,color);
+  c.strokeStyle=bg2; c.lineWidth=isPreview?1.5:2; c.stroke();
+  c.shadowBlur=0;
+  c.beginPath(); c.arc(x,y,R*0.65,0,Math.PI*2);
+  c.strokeStyle=glowColor+'0.3)'; c.lineWidth=1; c.stroke();
+  c.fillStyle=color;
+  c.font=`bold ${Math.round(R*0.55)}px Orbitron,monospace`;
+  c.textAlign='center'; c.textBaseline='middle';
+  c.shadowColor=color; c.shadowBlur=6;
+  c.fillText(owner===1?'N':'S', x, y);
+  c.shadowBlur=0;
+  const dotAngle=(phase||0)*0.5;
+  c.beginPath(); c.arc(x+Math.cos(dotAngle)*(R*0.7),y+Math.sin(dotAngle)*(R*0.7),2.5,0,Math.PI*2);
+  c.fillStyle=color; c.fill();
+  c.restore();
+}
+
+function drawHoverPreview(t) {
+  if (!GS.hoveredCell || GS.phase !== 'idle' || !isMyTurn()) return;
+  const { x, y } = GS.hoveredCell;
+  if (!isInsideArena(x,y)) return;
+  const tooClose = GS.placedMagnets.some(m => Math.hypot(m.x-x,m.y-y) < CFG.MAGNET_RADIUS*2.2);
+  const alpha = tooClose ? 0.25 : (0.5+0.1*Math.sin(t*3));
+  const inRange = GS.placedMagnets.filter(m => Math.hypot(m.x-x,m.y-y) < CFG.ATTRACT_RANGE);
+  drawMagnet(ctx, x, y, myPlayerNum, t*2, alpha, true);
+  if (!tooClose) {
+    ctx.beginPath(); ctx.arc(x,y,CFG.ATTRACT_RANGE,0,Math.PI*2);
+    ctx.fillStyle = inRange.length>0?'rgba(255,200,0,0.12)':'rgba(255,255,255,0.05)';
+    ctx.fill();
+    ctx.strokeStyle = inRange.length>0?'rgba(255,200,0,0.25)':'rgba(255,255,255,0.1)';
+    ctx.lineWidth=0.5; ctx.setLineDash([5,5]); ctx.stroke(); ctx.setLineDash([]);
+    inRange.forEach(m => {
+      ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(m.x,m.y);
+      ctx.strokeStyle='rgba(255,200,0,0.2)'; ctx.lineWidth=1;
+      ctx.setLineDash([3,6]); ctx.stroke(); ctx.setLineDash([]);
+    });
+  }
+  if (tooClose) {
+    ctx.beginPath(); ctx.arc(x,y,CFG.MAGNET_RADIUS+4,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,50,50,0.6)'; ctx.lineWidth=2; ctx.stroke();
+  }
+}
+
+function drawTurnOverlay(t) {
+  if (GS.phase === 'watching' || (!isMyTurn() && GS.phase !== 'ended')) {
+    const pulse = 0.6 + 0.4*Math.sin(t*2);
+    const cx2 = arenaCX, cy2 = arenaCY, R = arenaRadius;
+    ctx.save();
+    ctx.globalAlpha = 0.06 * pulse;
+    ctx.beginPath(); ctx.arc(cx2, cy2, R, 0, Math.PI*2);
+    const waitColor = myPlayerNum === 1 ? CFG.P2_COLOR : CFG.P1_COLOR;
+    ctx.fillStyle = waitColor;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  GS.particles.forEach(p => {
+    ctx.save(); ctx.globalAlpha = Math.min(p.life,1);
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+    ctx.fillStyle=p.color; ctx.fill(); ctx.restore();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VICTORIA
+// ═══════════════════════════════════════════════════════════════
+function showVictory(winner, reason) {
+  GS.phase = 'ended';
+  const victoryEl = document.getElementById('screen-victory');
+  const winnerText = document.getElementById('victory-winner-text');
+  document.getElementById('victory-reason').textContent = reason;
+
+  const isMe = winner === myPlayerNum;
+  winnerText.textContent = isMe ? '¡TÚ GANAS!' : `Jugador ${winner}`;
+  winnerText.className = `victory-winner p${winner}`;
+  document.getElementById('vs-turns').textContent = GS.turnCount;
+  document.getElementById('vs-attractions').textContent = GS.totalAttractions;
+  victoryEl.style.display = 'flex';
+
+  const color = winner===1 ? CFG.P1_COLOR : CFG.P2_COLOR;
+  for (let i=0; i<60; i++) {
+    setTimeout(() => {
+      spawnImpactParticles(
+        arenaCX+(Math.random()-0.5)*arenaRadius,
+        arenaCY+(Math.random()-0.5)*arenaRadius,
+        color, 12
+      );
+    }, i*50);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PARTÍCULAS
+// ═══════════════════════════════════════════════════════════════
+function spawnImpactParticles(x, y, color, count) {
+  for (let i=0; i<count; i++) {
+    const angle = (i/count)*Math.PI*2+Math.random()*0.5;
+    const speed = 1.5+Math.random()*3.5;
+    GS.particles.push({
+      x, y,
+      vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+      size: 2+Math.random()*3, life: 1,
+      decay: 0.03+Math.random()*0.04,
+      color, gravity: 0.05,
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTERACCIÓN
+// ═══════════════════════════════════════════════════════════════
+function onCanvasHover(e) {
+  const { x, y } = getCanvasPos(e);
+  GS.hoveredCell = { x, y };
+  updateProxTooltip(e, x, y);
+}
+
+function onCanvasHoverTouch(e) {
+  e.preventDefault();
+  const { x, y } = getCanvasPos(e.touches[0]);
+  GS.hoveredCell = { x, y };
+}
+
+function onCanvasClick(e) {
+  if (!isMyTurn() || GS.phase !== 'idle') return;
+  const { x, y } = getCanvasPos(e);
+  tryPlaceMagnet(x, y);
+}
+
+function onCanvasTouch(e) {
+  e.preventDefault();
+  if (!isMyTurn() || GS.phase !== 'idle') return;
+  const { x, y } = getCanvasPos(e.touches[0]);
+  tryPlaceMagnet(x, y);
+}
+
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX-rect.left) * (canvas.width/rect.width),
+    y: (e.clientY-rect.top)  * (canvas.height/rect.height),
+  };
+}
+
+function isInsideArena(x, y) {
+  return Math.hypot(x-arenaCX, y-arenaCY) <= arenaRadius - CFG.MAGNET_RADIUS;
+}
+
+function resizeGameCanvas() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const size = Math.min(vw*0.98, vh-80-20, 700);
+  canvas.width = size; canvas.height = size;
+  arenaCX = size/2; arenaCY = size/2;
+  arenaRadius = size*0.5*CFG.ARENA_RATIO;
+}
+
+window.addEventListener('resize', () => {
+  if (canvas) resizeGameCanvas();
+  if (bgCanvas) { bgCanvas.width=window.innerWidth; bgCanvas.height=window.innerHeight; }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// HUD & UI
+// ═══════════════════════════════════════════════════════════════
+function updateHUD() {
+  document.getElementById('turn-num').textContent = GS.turnCount + 1;
+  const p1Panel = document.getElementById('panel-p1');
+  const p2Panel = document.getElementById('panel-p2');
+  if (GS.turn===1) { p1Panel.classList.add('active'); p2Panel.classList.remove('active'); }
+  else             { p2Panel.classList.add('active'); p1Panel.classList.remove('active'); }
+}
+
+function updateInventoryUI() {
+  [1,2].forEach(p => {
+    const count = GS.players[p].magnets;
+    document.getElementById(`count-p${p}`).textContent = count;
+    const inv = document.getElementById(`inv-p${p}`);
+    inv.innerHTML = '';
+    const display = Math.min(count, 12);
+    for (let i=0; i<Math.max(display,1); i++) {
+      const pip = document.createElement('div');
+      pip.className = 'magnet-pip';
+      if (i >= count) pip.classList.add('used');
+      inv.appendChild(pip);
+    }
+    if (count>12) {
+      const more = document.createElement('span');
+      more.style.cssText = 'font-size:0.7rem;color:var(--muted);margin-left:4px;';
+      more.textContent = `+${count-12}`;
+      inv.appendChild(more);
+    }
+  });
+}
+
+function updateProxTooltip(e, x, y) {
+  const tooltip = document.getElementById('prob-tooltip');
+  if (!isInsideArena(x,y)) { tooltip.style.opacity=0; return; }
+  const inRange = GS.placedMagnets.filter(m => Math.hypot(m.x-x,m.y-y) < CFG.ATTRACT_RANGE);
+  if (inRange.length===0) { tooltip.style.opacity=0; return; }
+  const prob = (1-Math.pow(0.5,inRange.length))*100;
+  tooltip.textContent = `⚡ ${inRange.length} imán${inRange.length>1?'es':''} en rango · ${prob.toFixed(0)}% prob. atracción`;
+  tooltip.style.opacity=1;
+  tooltip.style.left=(e.clientX+15)+'px';
+  tooltip.style.top=(e.clientY-10)+'px';
+}
+
+function showFloatingMsg(text, color, duration=CFG.FLOAT_MSG_DURATION) {
+  const el = document.getElementById('floating-msg');
+  el.textContent=text; el.style.color=color; el.style.opacity='0';
+  el.style.transform='translate(-50%,-50%) scale(0.8)';
+  el.offsetHeight;
+  el.style.transition=`opacity 0.2s,transform 0.3s cubic-bezier(0.34,1.56,0.64,1)`;
+  el.style.opacity='1'; el.style.transform='translate(-50%,-50%) scale(1)';
+  clearTimeout(el._timeout);
+  el._timeout = setTimeout(() => {
+    el.style.transition='opacity 0.4s,transform 0.4s';
+    el.style.opacity='0';
+    el.style.transform='translate(-50%,-50%) scale(0.9) translateY(-10px)';
+  }, duration);
+}
+
+function setStatus(msg) {
+  document.getElementById('status-bar').textContent = msg;
+}
+
+// ─── Generar código de sala ─────────────────────────────────────
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i=0; i<5; i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+
+</script>
+</body>
+</html>
